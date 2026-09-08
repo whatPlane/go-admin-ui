@@ -10,11 +10,9 @@
     因此凡是承载子路由的位置都应使用本组件，而非裸 router-view。
   -->
   <router-view v-slot="{ Component, route }">
-    <transition :name="transition" mode="out-in">
-      <keep-alive :include="cachedViews">
-        <component :is="Component" :key="route.path" />
-      </keep-alive>
-    </transition>
+    <keep-alive :include="cachedViews">
+      <component :is="Component" :key="route.path" />
+    </keep-alive>
   </router-view>
 </template>
 
@@ -24,13 +22,6 @@ import { useTagsViewStore } from '@/stores/tagsView'
 
 export default {
   name: 'RouterViewKeepAlive',
-  props: {
-    // 容器层不需要再播一次过渡，否则同一次导航会叠加两段动画
-    transition: {
-      type: String,
-      default: ''
-    }
-  },
   computed: {
     ...mapState(useTagsViewStore, ['cachedViews'])
   }

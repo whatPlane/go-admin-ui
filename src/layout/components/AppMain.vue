@@ -1,6 +1,6 @@
 <template>
   <section class="app-main" :style="appMainStyle">
-    <router-view-keep-alive transition="fade-transform" />
+    <router-view-keep-alive />
   </section>
 </template>
 
