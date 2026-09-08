@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { authenticate, installApiMocks } from './fixtures'
 import { captureBodies } from './support/crud'
+import { searchToggle } from './support/protable'
 
 /**
  * The two audit pages. They read and delete and nothing writes them, so neither
@@ -97,6 +98,11 @@ test.describe('sys-oper-log', () => {
     await page.goto('/#/admin/sys-oper-log')
     await page.waitForSelector('.el-table')
 
+    // Behind the toggle at this width: the time range leads and takes two of
+    // the three columns, so the collapsed row holds it and the buttons and
+    // nothing else. A reader reaching for the url filter clicks the same
+    // button. (At four columns -- a panel of 1280px or more -- both show.)
+    await searchToggle(page).click()
     await page.getByPlaceholder('请输入访问地址').fill('/api/v1/sys-user')
     await page.getByPlaceholder('请输入访问地址').press('Enter')
 
@@ -143,6 +149,11 @@ test.describe('sys-oper-log', () => {
 
     await page.goto('/#/admin/sys-oper-log')
     await page.waitForSelector('.el-table')
+
+    // Declared first and two columns wide, so a collapsed panel keeps it: on an
+    // audit log the time range is what people come to filter by, and it used to
+    // start out behind the toggle.
+    await expect(page.locator('.pro-table__search input[placeholder="开始日期"]')).toBeVisible()
 
     const sent = calls.operLog.listQueries.at(-1) ?? ''
     expect(sent).not.toContain('beginTime=2026')

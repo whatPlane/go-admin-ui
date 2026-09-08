@@ -5,6 +5,7 @@ import { getRoutes } from '@/api/admin/sys-role'
 // Explicit .vue path: TypeScript's bundler resolution does not try the .vue
 // extension for a directory import, though Vite resolves either form.
 import Layout from '@/layout/index.vue'
+import AppNotInstalled from '@/components/AppNotInstalled/index.vue'
 import { resolveRedirect } from '@/utils/route'
 import { i18n } from '@/lang'
 
@@ -30,6 +31,68 @@ type AppRoute = RouteRecordRaw & { hidden?: boolean, children?: AppRoute[] }
 const viewsModules = import.meta.glob('../views/**/*.vue')
 
 /**
+ * The same index for packaged applications, whose pages are copied into
+ * src/apps/<code>/ by scripts/sync-apps.mjs before dev or build starts.
+ *
+ * Evaluates to {} when the directory is absent or empty, which is what a
+ * checkout that has never run the sync script looks like. That is deliberate:
+ * skipping the script degrades app menus to the placeholder below rather than
+ * failing the build.
+ */
+const appsModules = import.meta.glob('../apps/**/*.vue')
+
+/**
+ * The path of a packaged app's page relative to src/, or null for a normal one.
+ *
+ * Menus store the component field with a leading slash ("/admin/sys-user/index"),
+ * but the app form is written both ways -- the PRD's acceptance criteria spell
+ * it "apps/<code>/x/index" -- and whether someone typed the slash into the menu
+ * form should not decide whether their app is found. Only the first segment is
+ * inspected; everything after it is the app's own business.
+ */
+const appPath = (view: string) => {
+  const path = view.startsWith('/') ? view.slice(1) : view
+  return path.split('/')[0] === 'apps' ? path : null
+}
+
+/**
+ * Loader for a component this build does not contain.
+ *
+ * Both globs above already hold every key this build could ever produce, so a
+ * miss cannot be retried by a fallback import(). Until now a miss threw, and
+ * the throw happened inside the router's async component loader, where Vue
+ * Router has no recovery path: the whole layout went blank rather than the one
+ * panel that was missing. Under the plugin model a miss stops being a mistake
+ * -- a backend installed without its frontend half, a menu row surviving an
+ * uninstall -- so it renders as a message instead.
+ *
+ * The console line is what keeps that from becoming a silent failure of its
+ * own: it names the file that was looked for, derived from the key that missed
+ * rather than rebuilt, so the two cannot drift apart. It is logged in
+ * production too, because "installed the backend, not the frontend" is more
+ * likely to surface on a deployment than on a developer's machine.
+ *
+ * `isAppPath` picks which of two hints follows the file name. A views-branch
+ * miss got only "check the menu's component path" -- true, but it points at a
+ * src/views/ file while staying silent about the one convention that would
+ * explain why a packaged app's page ended up there: 006's own backend probe
+ * seeded a menu with `component: "/order/index"` for a page that only exists
+ * under src/apps/order/, and the resulting warning named
+ * src/views/order/index.vue with nothing suggesting the real cause was a
+ * missing "apps/" segment -- exactly the wrong direction to send whoever is
+ * debugging it. See AGENTS.md's packaged-app section for the rule this spells
+ * out: a packaged app's component must start with "apps/<code>/".
+ */
+const missingComponent = (key: string, isAppPath: boolean) => {
+  const path = key.replace('../', 'src/')
+  const hint = isAppPath
+    ? 'check the menu\'s component path, or run scripts/sync-apps.mjs if this app has not been synced into this build yet'
+    : 'check the menu\'s component path -- if this is meant to be a packaged app\'s page, its component must start with "apps/<code>/" (e.g. "apps/order/index"), not a views path'
+  console.warn(`[loadView] no component at ${path} -- ${hint}`)
+  return () => Promise.resolve({ default: AppNotInstalled })
+}
+
+/**
  * Resolves a page component, forcing its name to match the route name.
  *
  * <keep-alive :include> matches by COMPONENT name while the cached list holds
@@ -46,15 +109,11 @@ const viewsModules = import.meta.glob('../views/**/*.vue')
  * "menu name differs from the component name" case in the e2e suite.
  */
 export const loadView = (view: string, name?: string) => {
-  const key = `../views${view}.vue`
-  const loader = viewsModules[key]
-  if (!loader) {
-    // viewsModules is import.meta.glob over the same directory, so it already
-    // holds every key this template could build. A `|| import(...)` fallback
-    // could only ever be reached for a path that does NOT exist, where it
-    // produced an opaque chunk-load failure instead of naming the component.
-    throw new Error(`loadView: no component at src/views${view}.vue (check the menu's component path)`)
-  }
+  const app = appPath(view)
+  // The globs are rooted one level up from this file, so "../apps/..." and
+  // "../views/..." are what their keys look like.
+  const key = app ? `../${app}.vue` : `../views${view}.vue`
+  const loader = (app ? appsModules : viewsModules)[key] ?? missingComponent(key, !!app)
   if (!name) return loader
 
   return () => Promise.resolve(loader()).then(mod => {

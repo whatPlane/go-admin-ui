@@ -8,12 +8,27 @@
       :default-sort="{ prop: 'createdAt', order: 'descending' }"
     >
       <template #search>
+        <!--
+          First, and two columns wide. A datetime range needs about 340px, half
+          of a row; declaring it first is what keeps it on screen when the panel
+          is collapsed, and on an audit log the time range is the filter people
+          come here to use.
+        -->
+        <el-form-item :label="$t('admin.sysOperLog.operTime')" class="is-wide">
+          <el-date-picker
+            v-model="operatedBetween"
+            type="datetimerange"
+            :range-separator="$t('admin.sysOperLog.rangeSeparator')"
+            :start-placeholder="$t('admin.sysOperLog.startDate')"
+            :end-placeholder="$t('admin.sysOperLog.endDate')"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+        </el-form-item>
         <el-form-item :label="$t('admin.sysOperLog.operUrl')">
           <el-input
             v-model="table.query.operUrl"
             :placeholder="$t('admin.sysOperLog.operUrlPlaceholder')"
             clearable
-            style="width: 180px"
           />
         </el-form-item>
         <el-form-item :label="$t('admin.sysOperLog.status')">
@@ -21,7 +36,6 @@
             v-model="table.query.status"
             :placeholder="$t('admin.sysOperLog.statusPlaceholder')"
             clearable
-            style="width: 130px"
           >
             <el-option
               v-for="item in sys_common_status"
@@ -30,17 +44,6 @@
               :value="item.value"
             />
           </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('admin.sysOperLog.operTime')">
-          <el-date-picker
-            v-model="operatedBetween"
-            type="datetimerange"
-            :range-separator="$t('admin.sysOperLog.rangeSeparator')"
-            :start-placeholder="$t('admin.sysOperLog.startDate')"
-            :end-placeholder="$t('admin.sysOperLog.endDate')"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 340px"
-          />
         </el-form-item>
       </template>
 

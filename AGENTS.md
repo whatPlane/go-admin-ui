@@ -30,6 +30,37 @@ Element Plus 的插槽能力一个都没少。传给它的其余属性会落到�
 搜索框**不要再写 `@keyup.enter`** —— 搜索按钮是 `native-type="submit"`，回车已经
 统一走表单提交；自己再加一遍，在只有一个文本框的搜索栏上会发两次请求。
 
+### 卡片由 `ProTable` 画，`PageContainer` 不再包一层
+
+`PageContainer` 的 `card` **默认是 `false`**，它只管页面留白。列表页的两张卡片
+（上：搜索；下：工具栏+表格+分页）由 `ProTable` 自己画，间距用全站通用的
+`.el-card + .el-card`。
+
+所以**列表页写 `<PageContainer>` 就行**；表单页、控制台这类「整页一个面」的才写
+`<PageContainer card>`（`sys-config/set`、`schedule/log` 是仅有的两个）。
+`PageContainer` 之下还有别的东西挨着 `ProTable`（`sys-user` 的部门树），
+自己套 `<el-card shadow="never">`，否则它是页面上唯一没有面的元素。
+
+对话框里的列表传 `:panels="false"`：对话框本身就是那张卡片，再套两张就是套盒。
+
+### 搜索栏是栅格，超出一行的默认收起
+
+列数按**面板实测宽度**取（≥1280 四列、≥750 三列、≥480 两列），不是窗口宽度——
+`sys-user` 把两成宽度让给了部门树，按窗口算会给它排出放不下的列数。
+
+按钮固定占第一行最后一格，所以三列时收起状态显示 **2 个**搜索项，多出来的
+藏在「展开」后面；搜索项本来就放得下时不显示这个按钮。
+`#search` 里照常写 `el-form-item`，但**不要再写 `style="width: 160px"`** ——
+控件会填满自己那一格，写死宽度只会让一列参差不齐。
+
+**`#search` 里的声明顺序从此有含义**：收起时保留的是**前面**几个，靠后的要点一下
+「展开」才够得着。15 个列表页里有 10 个搜索项超过一行，都会藏掉至少一个，所以
+**按重要性排**——`sys-oper-log` 的时间区间排在第三位，现在默认就是收起的那个。
+这和列顺序决定移动端信息层级是同一类事：改顺序不再只是改左右位置。
+
+日期区间这类一格装不下的（约 340px），在它的 `el-form-item` 上加
+`class="is-wide"` 占两格。
+
 ### 列宽：文字列一律 `min-width`，不要用 `width`
 
 `width` 是刚性的，列宽预算加起来超过容器时表格会横向溢出，而 `fixed="right"` 的操作列
@@ -106,7 +137,8 @@ Element Plus 的插槽能力一个都没少。传给它的其余属性会落到�
 重写。但**自定义渲染里不要写死像素宽度** —— 卡片可用宽度比表格列窄，写死的会溢出。
 
 `ProTable` 自身：`card`（默认 `true`，置 `false` 则始终用表格，适合本身就靠横向
-对照的表格）、`card-breakpoint`（默认 `768`）。
+对照的表格）、`card-breakpoint`（默认 `768`）、`panels`（默认 `true`，对话框里置
+`false` 去掉两张卡片）。
 
 `BasicLayout` + `#wrapper` 是旧写法，新页面不要再用。
 
@@ -279,6 +311,28 @@ export function listUser(query: SysUserQuery & PageQuery) {
 **承载子路由的位置一律用 `RouterViewKeepAlive`，不要写裸 `<router-view />`** ——
 后者渲染出的页面不受 `keep-alive` 管辖，多级菜单的缓存会失效。
 
+### 打包应用的 `component` 必须以 `apps/` 开头
+
+`apps.config.mjs` 配置的第三方/商店应用，页面由 `scripts/sync-apps.mjs` 复制进
+`src/apps/<code>/`；`stores/permission.ts` 的 `appPath()` 只认**第一段是 `apps`**
+的路径去那里找组件，其余一律当成主仓内置视图去 `src/views/` 下找。
+
+所以给打包应用写菜单种子，`component` 必须是：
+
+```
+apps/<code>/<该应用内的相对路径>/index
+```
+
+比如 `code: 'order'` 的应用要写成 `apps/order/index`，**不能**写成
+`/order/index` —— 第一段是 `order` 而不是 `apps`，会被当成内置视图去找一个
+不存在的 `src/views/order/index.vue`，表现上同样会摔到 `AppNotInstalled`
+占位，但控制台报的是 views 路径，跟真实原因（漏了 `apps/` 前缀）对不上，
+排查时容易被带偏。
+
+`source` 目录内容原样搬进 `src/apps/<code>/`，不会在 `code` 之外自动再插一层
+——想要 `apps/<code>/index` 这种最短形式，`source` 就要直接指到该应用自己
+"这一个页面模块"的目录，而不是应用仓库的 `views` 根目录。
+
 ## 多语言
 
 **新代码不要写中文字面量。** 界面上的每一句话都从语言包取：
@@ -385,11 +439,18 @@ e2e 的浏览器语言在 `playwright.config.ts` 里钉死为 `zh-CN`。别去�
 
 ## 提交规范
 
-格式 `type+emoji: 描述`：
+格式 `type(scope): 描述`：
 
-`feat✨` `fix🐛` `style💄` `docs📝` `perf👌` `test✅` `refactor🎨` `chore🔧`
+`feat` `fix` `docs` `style` `refactor` `perf` `test` `build` `ci` `chore`
+
+scope 写改动落在哪一块——组件名、模块名或目录名，例如
+`feat(protable)`、`fix(apps)`、`test(tags-view)`、`fix(ci)`。
 
 一个提交只做一件事。改动跨越多个语义时拆分提交，不要混在一起。
+
+**不要照着 `git log` 反推格式。** 2026-09-01 之前用的是 `type+emoji: 描述`
+（`feat✨` `fix🐛` `style💄`…），历史里还留着一批，照抄会写出已经废弃的格式。
+同理，那批旧提交里带的其他尾注也不是现在的惯例。
 
 ## 红线
 
