@@ -156,7 +156,7 @@ test.describe('dev-tools import', () => {
     await dialog.getByRole('button', { name: '确 定' }).click()
 
     await expect.poll(() => calls.extra.tableImports).toBe(1)
-    expect(JSON.parse(calls.extra.tableImportBody || '{}').tables).toBe('sys_order')
+    expect(new URL(calls.extra.tableImportUrl).searchParams.get('tables')).toBe('sys_order')
     await expect.poll(() => calls.extra.genTableList).toBeGreaterThan(before)
   })
 
@@ -275,8 +275,10 @@ test.describe('dev-tools editTable', () => {
     const sent = JSON.parse(bodies[0] || '{}')
     expect(sent.tableComment).toBe('演示菜单')
     expect(sent.columns).toHaveLength(2)
-    // Strings in the radio groups, booleans on the wire
-    expect(typeof sent.isAuth).toBe('boolean')
+    // Strings in the controls, integers in the Go SysTables contract
+    expect(sent.isAuth).toBe(1)
+    expect(sent.isDataScope).toBe(1)
+    expect(sent.isActions).toBe(2)
   })
 
   test('a column with no relation table offers no key to pick', async({ page }) => {

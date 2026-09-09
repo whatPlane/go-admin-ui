@@ -902,7 +902,7 @@ async function installSessionMocks(page: Page, counters: { getinfo: number, menu
 }
 
 export async function installApiMocks(page: Page) {
-  const extra = { getinfo: 0, menurole: 0, passwordReset: 0, roleDataScope: 0, operLogClean: 0, jobStarts: 0, jobStops: 0, tableImports: 0, tableImportBody: '', tableDeletes: 0, tableDeleteUrl: '', genTableList: 0, generated: [] as string[], setConfigSaves: 0, setConfigBody: '' }
+  const extra = { getinfo: 0, menurole: 0, passwordReset: 0, roleDataScope: 0, operLogClean: 0, jobStarts: 0, jobStops: 0, tableImports: 0, tableImportUrl: '', tableDeletes: 0, tableDeleteUrl: '', genTableList: 0, generated: [] as string[], setConfigSaves: 0, setConfigBody: '' }
 
   /** Milliseconds to hold a write open, so a test can submit again mid-flight. */
   const delays = { userWrite: 0, passwordReset: 0 }
@@ -958,7 +958,7 @@ export async function installApiMocks(page: Page) {
   await page.route('**/api/v1/sys/tables/info', async route => {
     if (route.request().method() === 'POST') {
       extra.tableImports++
-      extra.tableImportBody = route.request().postData() ?? ''
+      extra.tableImportUrl = route.request().url()
       await route.fulfill(json({ code: 200, msg: '导入成功', data: null }))
       return
     }
@@ -985,9 +985,9 @@ export async function installApiMocks(page: Page) {
           businessName: 'sysDemo',
           functionName: '演示',
           tplCategory: 'crud',
-          isDataScope: false,
-          isActions: true,
-          isAuth: true
+          isDataScope: 1,
+          isActions: 2,
+          isAuth: 1
         },
         list: genColumnRows
       }

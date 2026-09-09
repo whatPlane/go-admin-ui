@@ -99,7 +99,9 @@ export function importTable(data: { tables: string; [key: string]: unknown }) {
   return request<ApiResponse<null>>({
     url: '/api/v1/sys/tables/info',
     method: 'post',
-    data
+    // The Go handler reads c.Request.FormValue("tables"), which accepts query
+    // or form fields but not an application/json request body.
+    params: data
   })
 }
 

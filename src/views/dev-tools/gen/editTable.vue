@@ -340,10 +340,10 @@ const submit = async() => {
         treeName: info.value.treeName,
         treeParentCode: info.value.treeParentCode
       },
-      // Back to booleans for the wire
-      isDataScope: info.value.isDataScope === 'true',
-      isActions: info.value.isActions === 'true',
-      isAuth: info.value.isAuth === 'true'
+      // The controls keep strings locally; Go's SysTables contract uses ints.
+      isDataScope: Number(info.value.isDataScope),
+      isActions: Number(info.value.isActions),
+      isAuth: Number(info.value.isAuth)
     }
     await updateGenTable(payload)
     msgSuccess(t('devTools.editTable.saveSuccess'))
