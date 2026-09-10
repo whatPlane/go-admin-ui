@@ -302,6 +302,7 @@ const roleForm = useForm<SysRole, number>({
     roleKey: undefined,
     roleSort: 0,
     status: STATUS_NORMAL,
+    dataScope: '1',
     menuIds: [],
     remark: undefined
   }),
@@ -331,9 +332,12 @@ const roleForm = useForm<SysRole, number>({
  */
 const checkedMenuIds = (): number[] => menuTreeRef.value?.getCheckedKeys() ?? []
 
-const handleAdd = () => {
+const handleAdd = async() => {
+  superAdminOnly.value = false
+  await loadMenuTree()
   roleForm.openCreate()
-  void nextTick(() => menuTreeRef.value?.setCheckedKeys([]))
+  await nextTick()
+  menuTreeRef.value?.setCheckedKeys([])
 }
 
 const handleEdit = async(row: SysRole) => {
@@ -344,6 +348,8 @@ const handleEdit = async(row: SysRole) => {
     menuOptions.value = []
     return
   }
+  superAdminOnly.value = false
+  await loadMenuTree()
   await nextTick()
   menuTreeRef.value?.setCheckedKeys(roleForm.model.menuIds ?? [])
 }

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { authenticate, installApiMocks } from './fixtures'
+import { captureBodies } from './support/crud'
 
 /**
  * The role page: two dialogs on one screen, which is what the composable layer
@@ -159,6 +160,42 @@ test.describe('sys-role', () => {
 
     const dialog = page.getByRole('dialog').filter({ hasText: '修改角色' })
     await expect(dialog).toContainText('系统超级管理员无需此操作')
+  })
+
+  test('adding after editing admin restores the menu tree', async({ page }) => {
+    await installApiMocks(page)
+
+    await page.goto('/#/admin/sys-role')
+    await page.waitForSelector('.el-table')
+
+    await page.getByRole('row', { name: /系统管理员/ }).getByRole('button', { name: '修改' }).click()
+    const editDialog = page.getByRole('dialog').filter({ hasText: '修改角色' })
+    await expect(editDialog).toContainText('系统超级管理员无需此操作')
+    await editDialog.getByRole('button', { name: '取 消' }).click()
+
+    await page.locator('.pro-table__toolbar').getByRole('button', { name: '新增' }).click()
+    const addDialog = page.getByRole('dialog').filter({ hasText: '添加角色' })
+    await expect(addDialog).toBeVisible()
+    await expect(addDialog).not.toContainText('系统超级管理员无需此操作')
+    await expect(addDialog.locator('.el-tree-node')).not.toHaveCount(0)
+    await expect(addDialog.locator('.el-tree-node.is-checked')).toHaveCount(0)
+  })
+
+  test('creating a role sends the default data scope', async({ page }) => {
+    await installApiMocks(page)
+    const bodies = await captureBodies(page, /\/api\/v1\/role(\?|$)/, 'POST')
+
+    await page.goto('/#/admin/sys-role')
+    await page.waitForSelector('.el-table')
+    await page.locator('.pro-table__toolbar').getByRole('button', { name: '新增' }).click()
+
+    const dialog = page.getByRole('dialog').filter({ hasText: '添加角色' })
+    await dialog.getByPlaceholder('请输入角色名称').fill('客服')
+    await dialog.getByPlaceholder('请输入权限字符').fill('customer_service')
+    await dialog.getByRole('button', { name: '确 定' }).click()
+
+    await expect.poll(() => bodies.length).toBe(1)
+    expect(JSON.parse(bodies[0])).toMatchObject({ dataScope: '1' })
   })
 
   test('toggling status asks first and reverts on cancel', async({ page }) => {
