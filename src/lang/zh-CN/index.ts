@@ -11,6 +11,7 @@ import login from './login'
 import dashboard from './dashboard'
 import admin from './admin'
 import composables from './composables'
+import game from './game'
 
 /**
  * Chinese, the default and the fallback.
@@ -21,4 +22,4 @@ import composables from './composables'
  * drift the first time someone renamed a menu. Chinese always falls through to
  * the database value; see lang/backend.ts.
  */
-export default { common, schedule, devTools, demo, sysTools, profile, layout, route, components, login, dashboard, admin, composables }
+export default { common, schedule, devTools, demo, sysTools, profile, layout, route, components, login, dashboard, admin, composables, game }
